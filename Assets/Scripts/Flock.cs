@@ -41,6 +41,7 @@ public class Flock : MonoBehaviour {
             Quaternion rotation = Quaternion.Euler(Vector3.forward * Random.Range(0f, 360f));
             FlockAgent agent = Instantiate(agentPrefab, position, rotation, transform);
             agent.name = "Agent " + i;
+            agent.Initialize(this);
             agents.Add(agent);
         }
 

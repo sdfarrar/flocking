@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 [CreateAssetMenu(menuName = "Flock/Behaviors/Steered Cohesion")]
-public class SteeredCohesionBehavior : FlockBehavior {
+public class SteeredCohesionBehavior : FilteredFlockBehavior {
 
     [SerializeField] private float agentSmoothTime = 0.5f;
 
@@ -15,10 +15,14 @@ public class SteeredCohesionBehavior : FlockBehavior {
 
         // Otherwise average out position of neighbors
         Vector2 move = Vector2.zero;
-        foreach (Transform item in context) {
+        List<Transform> filteredContext = (ContextFilter!=null) ? ContextFilter.Filter(agent, context) : context;
+        foreach (Transform item in filteredContext) {
             move += (Vector2)item.position;
         }
-        move /= context.Count;
+
+        if(filteredContext.Count!=0) {
+            move /= filteredContext.Count;
+        }
 
         // Create offset from agent position
         move -= (Vector2)agent.transform.position;

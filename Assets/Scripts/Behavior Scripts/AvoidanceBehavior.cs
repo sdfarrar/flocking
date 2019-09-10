@@ -4,7 +4,7 @@ using UnityEngine;
 
 // The AvoidanceBehavior will cause agents to avoid from running into each other
 [CreateAssetMenu(menuName = "Flock/Behaviors/Avoidance")]
-public class AvoidanceBehavior : FlockBehavior {
+public class AvoidanceBehavior : FilteredFlockBehavior {
 
     public override Vector2 CalculateMove(FlockAgent agent, List<Transform> context, Flock flock) {
         // If no neighbors, then no adjustment
@@ -13,7 +13,8 @@ public class AvoidanceBehavior : FlockBehavior {
         // Otherwise average out position of neighbors
         Vector2 move = Vector2.zero;
         int nAvoid = 0;
-        foreach (Transform item in context) {
+        List<Transform> filteredContext = (ContextFilter!=null) ? ContextFilter.Filter(agent, context) : context;
+        foreach (Transform item in filteredContext) {
             bool inAvoidanceRadius = Vector2.SqrMagnitude(item.position - agent.transform.position) < flock.SquareAvoidanceRadius;
             if(!inAvoidanceRadius) { continue; }
 

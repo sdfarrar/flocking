@@ -4,22 +4,36 @@ using UnityEngine;
 
 public class FieldOfView : MonoBehaviour {
 
-    public float viewRadius;
+    [Header("Settings")]
+    [SerializeField] private float viewRadius;
 	[Range(0,360)]
-	public float viewAngle;
+	[SerializeField] private float viewAngle;
+    [Range(0.2f, 1f)]
+    [Tooltip("How long to wait before checking the field of view.")]
+    [SerializeField] private float delay = 0.2f;
 
-	public LayerMask targetMask;
-	public LayerMask obstacleMask;
+    [Header("Masks")]
+	[SerializeField] private LayerMask targetMask;
+	[SerializeField] private LayerMask obstacleMask;
 
-	public List<Transform> visibileTargets = new List<Transform>();
+    [Space()]
+	[SerializeField] private List<Transform> visibleTargets = new List<Transform>();
+	[SerializeField] private Transform closestTarget;
+    
+    #region Properties
+    public float ViewRadius { get => viewRadius; }
+    public float ViewAngle { get => viewAngle; }
+    public List<Transform> VisibleTargets { get => visibleTargets; }
+    public Transform ClosestTarget { get => closestTarget; }
+    #endregion
 
-	private Collider2D[] targetsBuffer = new Collider2D[256]; // probably only player
+	private Collider2D[] targetsBuffer = new Collider2D[256];
 
 	private void Start(){
-		StartCoroutine(FindTargetsWithDelay(0.2f));
+		StartCoroutine(FindTargetsWithDelay());
 	}
 
-	IEnumerator FindTargetsWithDelay(float delay){
+	IEnumerator FindTargetsWithDelay(){
 		while(true){
 			yield return new WaitForSeconds(delay);
 			FindVisibleTargets();
@@ -27,8 +41,10 @@ public class FieldOfView : MonoBehaviour {
 	}
 
 	void FindVisibleTargets(){
-		visibileTargets.Clear();
+		visibleTargets.Clear();
+        closestTarget = null;
 		int hits = Physics2D.OverlapCircleNonAlloc(transform.position, viewRadius, targetsBuffer, targetMask);
+        float closestDistance = float.MaxValue;
 		for(int i=0; i<hits; ++i){
 			Transform target = targetsBuffer[i].transform;
 
@@ -39,7 +55,11 @@ public class FieldOfView : MonoBehaviour {
 			if(Vector3.Angle(transform.up, dirToTarget) < viewAngle / 2){
 				float dstToTarget = Vector3.Distance(transform.position, target.position);
 				if(!Physics2D.Raycast(transform.position, dirToTarget, dstToTarget, obstacleMask)){
-					visibileTargets.Add(target);
+					visibleTargets.Add(target);
+                    if(dstToTarget<closestDistance) {
+                        closestDistance = dstToTarget;
+                        this.closestTarget = target;
+                    }
 				}
 			}
 		}

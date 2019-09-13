@@ -25,6 +25,8 @@ public class FieldOfView : MonoBehaviour {
     public float ViewAngle { get => viewAngle; }
     public List<Transform> VisibleTargets { get => visibleTargets; }
     public Transform ClosestTarget { get => closestTarget; }
+    public LayerMask TargetMask { get => targetMask; }
+    public LayerMask ObstacleMask { get => obstacleMask; }
     #endregion
 
 	private Collider2D[] targetsBuffer = new Collider2D[256];

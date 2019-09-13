@@ -6,15 +6,8 @@ public class ConfineToBounds : MonoBehaviour {
 
     public BoxCollider2D Boundary;
 
-    void Start() {
-        if(Boundary==null){
-            Debug.Log("Boundary needs set!", this);
-            this.gameObject.SetActive(false);
-            return;
-        }
-    }
-
     void Update() {
+        if(Boundary==null){ return; }
         if(Boundary.bounds.Contains(transform.position)){ return; }
         WrapAround();
     }

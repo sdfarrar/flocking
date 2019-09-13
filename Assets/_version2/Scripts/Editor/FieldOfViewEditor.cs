@@ -19,6 +19,12 @@ public class FieldOfViewEditor : Editor {
 		foreach(Transform visibleTarget in fow.VisibleTargets){
 			Handles.DrawLine(fow.transform.position, visibleTarget.position);
 		}
+
+        //Handles.color = Color.green;
+        //for(int i=0; i<360; i+=15) {
+        //    Vector3 direction = new Vector3(Mathf.Cos(i*Mathf.Deg2Rad), Mathf.Sin(i*Mathf.Deg2Rad));
+		//    Handles.DrawLine(fow.transform.position, fow.transform.position + direction * fow.ViewRadius);
+        //}
 	}
 
 }

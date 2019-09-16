@@ -20,7 +20,7 @@ public class BoidsGenerator : MonoBehaviour {
 
     void Start() {
         for (int i = 0; i < total; ++i) {
-            Vector3 position = Random.insideUnitCircle * total * density * radius;
+            Vector3 position = RandomPositionInsideViewport();
             Quaternion rotation = Quaternion.Euler(Vector3.forward * Random.Range(0f, 360f));
             Boid boid = Instantiate(prefab, position, rotation, transform);
             boid.name = "Boid " + i;
@@ -28,5 +28,15 @@ public class BoidsGenerator : MonoBehaviour {
             boid.GetComponent<ConfineToBounds>().Boundary = boundary;
             boids.Add(boid);
         }
+    }
+
+    private Vector3 RandomPositionInsideCircle() {
+        return Random.insideUnitCircle * total * density * radius;
+    }
+
+    private Vector3 RandomPositionInsideViewport() {
+        float x = (Random.value - 0.5f) * 9 * 2;
+        float y = (Random.value - 0.5f) * 4 * 2;
+        return new Vector2(x, y);
     }
 }

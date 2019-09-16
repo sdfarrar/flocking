@@ -7,77 +7,135 @@ public class Boid : MonoBehaviour {
     [Header("Components")]
     [SerializeField] private new SpriteRenderer renderer;
     private FieldOfView view;
+    private new CircleCollider2D collider;
 
     [Header("Settings")]
     [SerializeField] private float speed = 8f;
-    [SerializeField] private float turnSpeed = 2f;
+    [SerializeField] private float maxTurnDegrees = 90f;
+
+    [SerializeField] private static float wAvoid = 0.6f;
+    [SerializeField] private static float wConverge = 0.6f;
+    [SerializeField] private static float wAlign = 0.4f;
 
     private Vector3 velocity;
 
     void Awake(){ 
         view = GetComponent<FieldOfView>();
+        collider = GetComponent<CircleCollider2D>();
+        velocity = transform.up * speed;
+        ComputeRays();
     }
 
     public void Initialize(float speed, float turnSpeed) {
         this.speed = speed;
-        this.turnSpeed = turnSpeed;
+        this.maxTurnDegrees = turnSpeed;
         velocity = transform.up * speed;
     }
 
     void Update() {
-        Transform closest = view.ClosestTarget;
-        Vector3 direction = (closest!=null) ? AvoidClosest(closest.position) : transform.up;
-        Move(direction.normalized * speed);
         //Vector3 direction = AvoidVisible();
-        //Move(direction);
+        Vector3 direction = Avoid()*wAvoid + Converge()*wConverge + Align()*wAlign;
+        Move(direction.normalized);
     }
 
     private Vector3 AvoidVisible() {
-        List<Transform> targets = view.VisibleTargets;
-        Vector3 direction = Vector2.zero;
-        foreach(Transform item in targets) {
-            direction += item.position - transform.position;
-        }
-        //return (targets.Count>0) ? direction/targets.Count : direction;
-        direction = (targets.Count>0) ? direction/targets.Count : transform.up;
-        direction = direction.normalized * speed - velocity;
-        return direction;
-        //return Vector3.ClampMagnitude(direction, turnSpeed);
+        Vector3 direction = FindOpenDirection();
+        return Vector3.Lerp(velocity.normalized, direction.normalized, maxTurnDegrees*Mathf.Deg2Rad*Time.deltaTime);
+        //return Vector3.RotateTowards(velocity, direction, maxTurnDegrees*Mathf.Deg2Rad*Time.deltaTime, 1.0f);
     }
 
-    private Vector3 AvoidClosest(Vector3 objectPosition) {
-        //Vector3 avoidanceDirection = Vector3.right;
-        //Vector3 targetDir = objectPosition - transform.position + avoidanceDirection; 
-        //return Vector3.RotateTowards(transform.up, targetDir, turnSpeed*Time.deltaTime, 0.0f);
-        Vector3 targetDir = objectPosition - transform.position;
-        Vector3 heading = transform.up;
-        float angle = Vector3.Angle(heading, targetDir);
+    private Vector3 Avoid() {
+        if (view.VisibleTargets.Count == 0) { return Vector2.zero; }
 
-        RaycastHit2D[] hits = new RaycastHit2D[2];
+        // Otherwise average out position of neighbors
+        Vector2 move = Vector2.zero;
+        int nAvoid = 0;
+        float radiusSq = view.ViewRadius * view.ViewRadius;
+        foreach (Transform item in view.VisibleTargets) {
+            bool inAvoidanceRadius = Vector2.SqrMagnitude(item.position - transform.position) < radiusSq;
+            if(!inAvoidanceRadius) { continue; }
 
-        for(int deg=0; deg<view.ViewAngle*.5f; deg+=15) {
-            float radians = deg*Mathf.Deg2Rad;
-            Vector3 check1 = new Vector3(Mathf.Cos(radians), Mathf.Sin(radians));
-            Vector3 check2 = new Vector3(Mathf.Cos(-radians), Mathf.Sin(-radians));
-
-            Vector3 target = transform.position + check1;
-            int hitCount = Physics2D.RaycastNonAlloc(transform.position, target, hits, view.ViewRadius, view.TargetMask);
-            //if(hitCount==1) { return Vector3.RotateTowards(transform.up, target, turnSpeed*Time.deltaTime, 0.0f); }
-            if(hitCount==1) { return target; }
-
-            target = transform.position + check2;
-            hitCount = Physics2D.RaycastNonAlloc(transform.position, target, hits, view.ViewRadius, view.TargetMask);
-            //if(hitCount==1) { return Vector3.RotateTowards(transform.up, target, turnSpeed*Time.deltaTime, 0.0f); }
-            if(hitCount==1) { return target; }
+            ++nAvoid;
+            move += (Vector2)(transform.position - item.position);
         }
 
-        //Physics2D.Raycast(transform.position, )
-        return heading;
+        return (nAvoid > 0) ? move / nAvoid : move;
     }
 
-    public void Move(Vector2 velocity) {
-        transform.up = velocity;
-        transform.position += (Vector3)velocity * Time.deltaTime;
+    private Vector3 Converge() {
+        // If no neighbors, then no adjustment
+        if (view.VisibleTargets.Count == 0) { return Vector2.zero; }
+
+        // Otherwise average out position of neighbors
+        Vector2 move = Vector2.zero;
+        foreach (Transform item in view.VisibleTargets) {
+            move += (Vector2)item.position;
+        }
+        move /= view.VisibleTargets.Count;
+
+        // Create offset from agent position
+        move -= (Vector2)transform.position;
+        return move;
+    }
+
+    private Vector3 Align() {
+        // If no neighbors, maintain current alignment
+        if (view.VisibleTargets.Count == 0) { return transform.up; }
+
+        // Otherwise average out alignment of neighbors
+        Vector2 move = Vector2.zero;
+        foreach (Transform item in view.VisibleTargets) {
+            move += (Vector2)item.up;
+        }
+        if(view.VisibleTargets.Count!=0) {
+            move /= view.VisibleTargets.Count;
+        }
+
+        return move;
+    }
+
+    private static Vector3[] rayDirections;
+    private void ComputeRays() {
+        if(rayDirections!=null){ return; }
+        int degreesDelta = 15;
+        int count = (int)(360 / degreesDelta);
+        int halfCount = count / 2;
+        rayDirections = new Vector3[count];
+        for(int i=0; i<halfCount; i+=2) {
+            float rotation = i * degreesDelta;
+            // Left Direction
+            Vector3 direction = Quaternion.Euler(0, 0, rotation) * transform.up;
+            direction.Normalize();
+            rayDirections[i] = direction;
+            // Right Direction
+            direction = Quaternion.Euler(0, 0, -rotation) * transform.up;
+            direction.Normalize();
+            rayDirections[i+1] = direction;
+        }
+
+    }
+
+    private Vector3 FindOpenDirection() {
+        Collider2D[] results = new Collider2D[2];
+        for(int i=0; i<rayDirections.Length; ++i) {
+            Vector3 direction = (transform.up + rayDirections[i]).normalized;
+            Vector3 origin = transform.position + direction * collider.radius*2.1f;
+            int hits = Physics2D.OverlapCircleNonAlloc(origin, collider.radius, results, view.TargetMask);
+            int totalhits = 0;
+            for(int j=0; j<hits; ++j) {
+                if(results[j].transform == this.transform) { continue;}
+                ++totalhits;
+            }
+            if(hits < 1) { return direction; }
+        }
+        return transform.up;
+    }
+
+
+    public void Move(Vector2 direction) {
+        transform.up = direction;
+        transform.position += (Vector3)direction * speed * Time.deltaTime;
+        Log("up: " + transform.up);
     }
 
 #if UNITY_EDITOR
